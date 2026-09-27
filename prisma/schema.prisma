@@ -1,0 +1,295 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  username     String    @unique
+  passwordHash String
+  fullName     String
+  role         String    @default("USER") // USER, ADMIN
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  profile             UserProfile?
+  settings            UserSettings?
+  habits              Habit[]
+  habitLogs           HabitLog[]
+  categories          Category[]
+  goals               Goal[]
+  dailyReflections    DailyReflection[]
+  streaks             Streak[]
+  userAchievements    UserAchievement[]
+  xpTransactions      XPTransaction[]
+  challengeParticipants ChallengeParticipant[]
+  focusSessions       FocusSession[]
+  aiInsights          AIInsight[]
+  aiConversations     AIConversation[]
+  notifications       Notification[]
+  reports             Report[]
+}
+
+model UserProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  primaryType         String   @default("Personal Growth") // Student, Athlete, Fitness Enthusiast, Professional, Entrepreneur, Creator, Freelancer, Personal Growth, Other
+  secondaryInterests  String   @default("[]") // JSON string of array
+  avatarUrl           String?
+  bio                 String?
+  timezone            String   @default("UTC")
+  onboardingCompleted Boolean  @default(false)
+  updatedAt           DateTime @updatedAt
+}
+
+model UserSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme                String   @default("dark") // dark, light, system
+  remindersEnabled     Boolean  @default(true)
+  weeklySummaryEnabled Boolean  @default(true)
+  weightedScoringEnabled Boolean @default(false)
+  updatedAt            DateTime @updatedAt
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  color     String   @default("#6366f1")
+  icon      String   @default("Folder")
+  isSystem  Boolean  @default(false)
+  habits    Habit[]
+  createdAt DateTime @default(now())
+}
+
+model Habit {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name          String
+  description   String?
+  icon          String      @default("Zap")
+  goalTarget    Float       @default(1.0)
+  goalUnit      String      @default("times")
+  frequencyType String      @default("DAILY") // DAILY, WEEKDAYS, WEEKLY, MONTHLY, CUSTOM
+  scheduledDays String      @default("[0,1,2,3,4,5,6]") // JSON array of 0-6 (Sun-Sat)
+  reminderTime  String?     // e.g. "08:00"
+  priority      String      @default("MEDIUM") // LOW, MEDIUM, HIGH
+  difficulty    String      @default("MEDIUM") // EASY, MEDIUM, HARD
+  color         String      @default("#6366f1")
+  isPaused      Boolean     @default(false)
+  isArchived    Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  logs          HabitLog[]
+  streaks       Streak[]
+  goalHabits    GoalHabit[]
+  focusSessions FocusSession[]
+}
+
+model HabitLog {
+  id          String   @id @default(cuid())
+  habitId     String
+  habit       Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String   // YYYY-MM-DD
+  status      String   @default("PENDING") // COMPLETED, SKIPPED, MISSED, PENDING
+  value       Float    @default(0.0)
+  notes       String?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([habitId, date])
+}
+
+model Streak {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habitId           String?
+  habit             Habit?   @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  currentStreak     Int      @default(0)
+  bestStreak        Int      @default(0)
+  lastCompletedDate String?  // YYYY-MM-DD
+  consistencyScore  Float    @default(0.0) // 0 - 100%
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, habitId])
+}
+
+model Goal {
+  id                 String      @id @default(cuid())
+  userId             String
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title              String
+  description        String?
+  category           String      @default("Personal Growth")
+  targetDate         DateTime?
+  progressPercentage Float       @default(0.0)
+  status             String      @default("ACTIVE") // ACTIVE, COMPLETED, PAUSED
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  goalHabits         GoalHabit[]
+}
+
+model GoalHabit {
+  id      String @id @default(cuid())
+  goalId  String
+  goal    Goal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  habitId String
+  habit   Habit  @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  weight  Float  @default(1.0)
+
+  @@unique([goalId, habitId])
+}
+
+model DailyReflection {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String   // YYYY-MM-DD
+  mood        String   @default("GOOD") // GREAT, GOOD, OKAY, LOW, DIFFICULT
+  energyLevel String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, date])
+}
+
+model Achievement {
+  id            String            @id @default(cuid())
+  code          String            @unique
+  title         String
+  description   String
+  category      String            @default("GENERAL") // GENERAL, STREAK, MASTERY, COMPLETION, SPECIAL
+  icon          String            @default("Trophy")
+  xpReward      Int               @default(50)
+  conditionType String            // FIRST_HABIT, STREAK_7, STREAK_30, TOTAL_50, PERFECT_DAY, PERFECT_WEEK, COMEBACK, READING_30, etc.
+  threshold     Int               @default(1)
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime?
+  progress      Int         @default(0)
+
+  @@unique([userId, achievementId])
+}
+
+model XPTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int
+  reason    String
+  sourceId  String?
+  createdAt DateTime @default(now())
+}
+
+model Challenge {
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  category     String   @default("GENERAL")
+  durationDays Int      @default(7)
+  targetCount  Int      @default(7)
+  badgeReward  String   @default("Flame")
+  startDate    DateTime?
+  endDate      DateTime?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  participants ChallengeParticipant[]
+}
+
+model ChallengeParticipant {
+  id            String    @id @default(cuid())
+  challengeId   String
+  challenge     Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progressCount Int       @default(0)
+  isCompleted   Boolean   @default(false)
+  joinedAt      DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([challengeId, userId])
+}
+
+model FocusSession {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habitId         String?
+  habit           Habit?    @relation(fields: [habitId], references: [id], onDelete: SetNull)
+  durationMinutes Int       @default(25)
+  sessionType     String    @default("POMODORO") // POMODORO, DEEP_WORK, CUSTOM
+  notes           String?
+  completedAt     DateTime  @default(now())
+}
+
+model AIInsight {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String   // STRENGTH, WEAKNESS, TREND, RISK, OPPORTUNITY, COACH_NOTE
+  title      String
+  message    String
+  actionText String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model AIConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // USER, ASSISTANT, SYSTEM
+  message   String
+  metadata  String?  // JSON string
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // REMINDER, STREAK, ACHIEVEMENT, PROGRESS, AI_INSIGHT, MOTIVATION
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportType  String   // DAILY, WEEKLY, MONTHLY, YEARLY, COMPLETE
+  periodStart String   // YYYY-MM-DD
+  periodEnd   String   // YYYY-MM-DD
+  summaryData String   // JSON string of full metrics, comparisons, etc.
+  pdfUrl      String?
+  createdAt   DateTime @default(now())
+}
